@@ -92,6 +92,14 @@ MCP_TRANSPORT=http MCP_HTTP_PORT=3000 node dist/index.js
 # MCP endpoint: POST http://localhost:3000/mcp
 ```
 
+## Resources
+
+- [Jira Cloud REST API v3 Reference](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)
+- [Atlassian API Token Management](https://id.atlassian.com/manage-profile/security/api-tokens)
+- [Jira Software Agile REST API](https://developer.atlassian.com/cloud/jira/software/rest/)
+- [JQL Reference](https://support.atlassian.com/jira-service-management-cloud/docs/use-advanced-search-with-jira-query-language-jql/)
+- [MCP Protocol Spec](https://modelcontextprotocol.io)
+
 ## License
 
 MIT
