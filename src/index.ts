@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 // Jira MCP Server — Production Quality
-// 102 tools covering projects, issues, sprints, boards, comments, users,
-// worklogs, attachments, versions, components, custom fields, labels, priorities,
-// service management (JSM), screens, issue types, permissions, filters, audit log,
-// statuses, notification schemes, roadmap/epics
+// 200+ tools covering the full Jira Cloud REST API v3:
+// projects, issues, sprints, boards, comments, users, worklogs, attachments,
+// versions, components, custom fields, labels, priorities, service management (JSM),
+// screens, issue types, permissions, filters, audit log, statuses, notification schemes,
+// roadmap/epics, issue links, issue properties, remote links, votes, watchers,
+// dashboards, groups, JQL, myself, project categories, features, properties, roles,
+// project types, resolutions, server info, tasks, time tracking, user properties,
+// user search, webhooks, field configurations, issue type schemes, issue security,
+// workflow, avatars, and bulk operations.
 // Transport: stdio (default) or HTTP (MCP_TRANSPORT=http)
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -35,6 +40,34 @@ import { registerTools as registerAuditLogTools } from "./tools/audit_log.js";
 import { registerTools as registerStatusesTools } from "./tools/statuses.js";
 import { registerTools as registerNotificationSchemesTools } from "./tools/notification_schemes.js";
 import { registerTools as registerRoadmapTools } from "./tools/roadmap.js";
+// V2: Expanded tool modules — full Jira Cloud API coverage
+import { registerTools as registerIssueLinksTools } from "./tools/issue_links.js";
+import { registerTools as registerIssuePropertiesTools } from "./tools/issue_properties.js";
+import { registerTools as registerIssueRemoteLinksTools } from "./tools/issue_remote_links.js";
+import { registerTools as registerIssueVotesTools } from "./tools/issue_votes.js";
+import { registerTools as registerIssueWatchersTools } from "./tools/issue_watchers.js";
+import { registerTools as registerDashboardsTools } from "./tools/dashboards.js";
+import { registerTools as registerGroupsTools } from "./tools/groups.js";
+import { registerTools as registerJqlTools } from "./tools/jql.js";
+import { registerTools as registerMyselfTools } from "./tools/myself.js";
+import { registerTools as registerProjectCategoriesTools } from "./tools/project_categories.js";
+import { registerTools as registerProjectFeaturesTools } from "./tools/project_features.js";
+import { registerTools as registerProjectPropertiesTools } from "./tools/project_properties.js";
+import { registerTools as registerProjectRolesDetailTools } from "./tools/project_roles_detail.js";
+import { registerTools as registerProjectTypesTools } from "./tools/project_types.js";
+import { registerTools as registerResolutionTools } from "./tools/resolution.js";
+import { registerTools as registerServerInfoTools } from "./tools/server_info.js";
+import { registerTools as registerTasksTools } from "./tools/tasks.js";
+import { registerTools as registerTimeTrackingTools } from "./tools/time_tracking.js";
+import { registerTools as registerUserPropertiesTools } from "./tools/user_properties.js";
+import { registerTools as registerUserSearchTools } from "./tools/user_search.js";
+import { registerTools as registerWebhooksTools } from "./tools/webhooks.js";
+import { registerTools as registerFieldConfigurationsTools } from "./tools/field_configurations.js";
+import { registerTools as registerIssueTypeSchemesTools } from "./tools/issue_type_schemes.js";
+import { registerTools as registerIssueSecurityTools } from "./tools/issue_security.js";
+import { registerTools as registerWorkflowTools } from "./tools/workflow.js";
+import { registerTools as registerAvatarsTools } from "./tools/avatars.js";
+import { registerTools as registerBulkOperationsTools } from "./tools/bulk_operations.js";
 
 const MCP_NAME = "jira";
 const MCP_VERSION = "1.0.0";
@@ -93,13 +126,39 @@ async function main() {
   registerStatusesTools(server, client);             // 3:  list_statuses, get_status, list_status_categories
   registerNotificationSchemesTools(server, client);  // 2:  list_notification_schemes, get_notification_scheme
   registerRoadmapTools(server, client);              // 5:  list_epics, get_epic, update_epic, list_epic_issues, move_issue_to_epic
-  // Issues expansions: +5 (get_issue_changelog, list_issue_watchers, add_watcher, remove_watcher, get_issue_remote_links)
-  // Projects expansions: +5 (update_project, delete_project, get_project_components, archive_project, list_recent_projects)
-  // Users expansions: +4 (find_users_by_query, get_user_groups, list_all_users, get_account_ids)
-  // Total: 102 tools
+  // V2: Expanded tool modules
+  registerIssueLinksTools(server, client);           // 8:  list_issue_link_types, get_issue_link_type, create_issue_link_type, update_issue_link_type, delete_issue_link_type, get_issue_link, create_issue_link, delete_issue_link
+  registerIssuePropertiesTools(server, client);      // 4:  list_issue_properties, get_issue_property, set_issue_property, delete_issue_property
+  registerIssueRemoteLinksTools(server, client);     // 5:  list_issue_remote_links, get_issue_remote_link, create_issue_remote_link, update_issue_remote_link, delete_issue_remote_link
+  registerIssueVotesTools(server, client);           // 3:  get_issue_votes, add_vote, remove_vote
+  registerIssueWatchersTools(server, client);        // 3:  get_issue_watchers, add_watcher, remove_watcher
+  registerDashboardsTools(server, client);           // 7:  list_dashboards, search_dashboards, get_dashboard, create_dashboard, update_dashboard, delete_dashboard, copy_dashboard
+  registerGroupsTools(server, client);               // 8:  get_group, create_group, delete_group, find_groups, get_group_members, add_user_to_group, remove_user_from_group, bulk_get_groups
+  registerJqlTools(server, client);                  // 5:  parse_jql, sanitize_jql, get_jql_autocomplete_data, get_jql_autocomplete_suggestions, match_issues_to_jql
+  registerMyselfTools(server, client);               // 3:  get_myself, update_myself, change_my_password
+  registerProjectCategoriesTools(server, client);    // 5:  list_project_categories, get_project_category, create_project_category, update_project_category, delete_project_category
+  registerProjectFeaturesTools(server, client);      // 2:  list_project_features, toggle_project_feature
+  registerProjectPropertiesTools(server, client);    // 4:  list_project_properties, get_project_property, set_project_property, delete_project_property
+  registerProjectRolesDetailTools(server, client);   // 8:  list_all_project_roles, get_project_role_by_id, create_project_role, update_project_role, delete_project_role, get_project_role_actors, add_actors_to_project_role, remove_actor_from_project_role
+  registerProjectTypesTools(server, client);         // 3:  list_project_types, get_accessible_project_types, get_project_type_by_key
+  registerResolutionTools(server, client);           // 6:  list_resolutions, get_resolution, create_resolution, update_resolution, delete_resolution, set_default_resolution
+  registerServerInfoTools(server, client);           // 6:  get_server_info, get_license, get_application_roles, get_application_role, get_status_categories, get_status_category
+  registerTasksTools(server, client);                // 2:  get_task, cancel_task
+  registerTimeTrackingTools(server, client);         // 5:  get_time_tracking_config, update_time_tracking_config, list_time_tracking_providers, select_time_tracking_provider, disable_time_tracking
+  registerUserPropertiesTools(server, client);       // 6:  list_user_properties, get_user_property, set_user_property, delete_user_property, get_user_columns, reset_user_columns
+  registerUserSearchTools(server, client);           // 5:  find_users_for_picker, find_users_assignable_to_projects, find_users_with_permissions, bulk_get_users, find_users_by_property
+  registerWebhooksTools(server, client);             // 5:  list_webhooks, register_webhooks, delete_webhooks, get_failed_webhooks, refresh_webhooks
+  registerFieldConfigurationsTools(server, client);  // 7:  list_field_configurations, create_field_configuration, update_field_configuration, delete_field_configuration, list_field_configuration_items, update_field_configuration_items, list_field_configuration_schemes
+  registerIssueTypeSchemesTools(server, client);     // 7:  list_issue_type_schemes, create_issue_type_scheme, update_issue_type_scheme, delete_issue_type_scheme, list_issue_type_scheme_items, list_projects_for_issue_type_scheme, assign_issue_type_scheme_to_project
+  registerIssueSecurityTools(server, client);        // 5:  list_issue_security_schemes, get_issue_security_scheme, list_issue_security_levels, get_issue_security_level, list_project_security_levels
+  registerWorkflowTools(server, client);             // 6:  list_workflows, get_workflow, create_workflow, delete_workflow, list_workflow_schemes, get_workflow_scheme
+  registerAvatarsTools(server, client);              // 4:  list_system_avatars, get_avatars, delete_avatar, get_avatar_image_by_id
+  registerBulkOperationsTools(server, client);       // 5:  get_bulk_edit_fields, bulk_edit_issues, get_bulk_transition_statuses, bulk_transition_issues, bulk_delete_issues
 
   logger.info("server.tools_registered", {
-    count: 102,
+    count: 200,
+    version: "v2",
+    modules: 50,
     tools: [
       // Health (1)
       "health_check",
@@ -151,6 +210,79 @@ async function main() {
       "list_notification_schemes", "get_notification_scheme",
       // Roadmap / Epics (5)
       "list_epics", "get_epic", "update_epic", "list_epic_issues", "move_issue_to_epic",
+      // V2: Issue Links (8)
+      "list_issue_link_types", "get_issue_link_type", "create_issue_link_type", "update_issue_link_type",
+      "delete_issue_link_type", "get_issue_link", "create_issue_link", "delete_issue_link",
+      // V2: Issue Properties (4)
+      "list_issue_properties", "get_issue_property", "set_issue_property", "delete_issue_property",
+      // V2: Issue Remote Links (5)
+      "list_issue_remote_links", "get_issue_remote_link", "create_issue_remote_link",
+      "update_issue_remote_link", "delete_issue_remote_link",
+      // V2: Issue Votes (3)
+      "get_issue_votes", "add_vote", "remove_vote",
+      // V2: Issue Watchers (3)
+      "get_issue_watchers", "add_watcher", "remove_watcher",
+      // V2: Dashboards (7)
+      "list_dashboards", "search_dashboards", "get_dashboard", "create_dashboard",
+      "update_dashboard", "delete_dashboard", "copy_dashboard",
+      // V2: Groups (8)
+      "get_group", "create_group", "delete_group", "find_groups",
+      "get_group_members", "add_user_to_group", "remove_user_from_group", "bulk_get_groups",
+      // V2: JQL (5)
+      "parse_jql", "sanitize_jql", "get_jql_autocomplete_data",
+      "get_jql_autocomplete_suggestions", "match_issues_to_jql",
+      // V2: Myself (3)
+      "get_myself", "update_myself", "change_my_password",
+      // V2: Project Categories (5)
+      "list_project_categories", "get_project_category", "create_project_category",
+      "update_project_category", "delete_project_category",
+      // V2: Project Features (2)
+      "list_project_features", "toggle_project_feature",
+      // V2: Project Properties (4)
+      "list_project_properties", "get_project_property", "set_project_property", "delete_project_property",
+      // V2: Project Roles Detail (8)
+      "list_all_project_roles", "get_project_role_by_id", "create_project_role", "update_project_role",
+      "delete_project_role", "get_project_role_actors", "add_actors_to_project_role", "remove_actor_from_project_role",
+      // V2: Project Types (3)
+      "list_project_types", "get_accessible_project_types", "get_project_type_by_key",
+      // V2: Resolution (6)
+      "list_resolutions", "get_resolution", "create_resolution",
+      "update_resolution", "delete_resolution", "set_default_resolution",
+      // V2: Server Info + App Roles + Status Categories (6)
+      "get_server_info", "get_license", "get_application_roles", "get_application_role",
+      "get_status_categories", "get_status_category",
+      // V2: Tasks (2)
+      "get_task", "cancel_task",
+      // V2: Time Tracking (5)
+      "get_time_tracking_config", "update_time_tracking_config", "list_time_tracking_providers",
+      "select_time_tracking_provider", "disable_time_tracking",
+      // V2: User Properties + Columns (6)
+      "list_user_properties", "get_user_property", "set_user_property", "delete_user_property",
+      "get_user_columns", "reset_user_columns",
+      // V2: User Search (5)
+      "find_users_for_picker", "find_users_assignable_to_projects", "find_users_with_permissions",
+      "bulk_get_users", "find_users_by_property",
+      // V2: Webhooks (5)
+      "list_webhooks", "register_webhooks", "delete_webhooks", "get_failed_webhooks", "refresh_webhooks",
+      // V2: Field Configurations (7)
+      "list_field_configurations", "create_field_configuration", "update_field_configuration",
+      "delete_field_configuration", "list_field_configuration_items", "update_field_configuration_items",
+      "list_field_configuration_schemes",
+      // V2: Issue Type Schemes (7)
+      "list_issue_type_schemes", "create_issue_type_scheme", "update_issue_type_scheme",
+      "delete_issue_type_scheme", "list_issue_type_scheme_items",
+      "list_projects_for_issue_type_scheme", "assign_issue_type_scheme_to_project",
+      // V2: Issue Security (5)
+      "list_issue_security_schemes", "get_issue_security_scheme", "list_issue_security_levels",
+      "get_issue_security_level", "list_project_security_levels",
+      // V2: Workflow + Workflow Schemes (6)
+      "list_workflows", "get_workflow", "create_workflow", "delete_workflow",
+      "list_workflow_schemes", "get_workflow_scheme",
+      // V2: Avatars (4)
+      "list_system_avatars", "get_avatars", "delete_avatar", "get_avatar_image_by_id",
+      // V2: Bulk Operations (5)
+      "get_bulk_edit_fields", "bulk_edit_issues", "get_bulk_transition_statuses",
+      "bulk_transition_issues", "bulk_delete_issues",
     ],
   });
 
