@@ -224,4 +224,168 @@ export function registerTools(server: McpServer, client: JiraClient): void {
       };
     }
   );
+
+  // ── update_project ─────────────────────────────────────────────────────────
+  server.registerTool(
+    "update_project",
+    {
+      title: "Update Jira Project",
+      description:
+        "Update an existing Jira project's settings. Supports updating name, description, lead, URL, assignee type, and project category. Returns the updated project details.",
+      inputSchema: {
+        projectKeyOrId: z.string().describe("Project key (e.g. PROJ) or project ID to update"),
+        name: z.string().optional().describe("New project name"),
+        description: z.string().optional().describe("New project description"),
+        leadAccountId: z.string().optional().describe("Account ID of the new project lead"),
+        url: z.string().optional().describe("New project URL"),
+        assigneeType: z.enum(["PROJECT_LEAD", "UNASSIGNED"]).optional().describe("Default assignee type"),
+        avatarId: z.number().int().optional().describe("ID of the new project avatar"),
+        categoryId: z.number().int().optional().describe("ID of the project category"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const body: Record<string, unknown> = {};
+      if (args.name) body.name = args.name;
+      if (args.description !== undefined) body.description = args.description;
+      if (args.leadAccountId) body.leadAccountId = args.leadAccountId;
+      if (args.url) body.url = args.url;
+      if (args.assigneeType) body.assigneeType = args.assigneeType;
+      if (args.avatarId !== undefined) body.avatarId = args.avatarId;
+      if (args.categoryId !== undefined) body.categoryId = args.categoryId;
+
+      const result = await logger.time(
+        "tool.update_project",
+        () => client.put(`/project/${args.projectKeyOrId}`, body),
+        { tool: "update_project", project: args.projectKeyOrId as string }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── delete_project ─────────────────────────────────────────────────────────
+  server.registerTool(
+    "delete_project",
+    {
+      title: "Delete Jira Project",
+      description:
+        "Permanently delete a Jira project and all its issues. This action cannot be undone. Requires project admin permissions. To move a project to trash instead, use archive_project.",
+      inputSchema: {
+        projectKeyOrId: z.string().describe("Project key (e.g. PROJ) or project ID to delete"),
+        enableUndo: z.boolean().optional().describe("Move to project trash instead of permanent delete (default false). If true, project can be restored from Jira admin."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      if (args.enableUndo) params.set("enableUndo", "true");
+      const qs = params.toString() ? `?${params}` : "";
+
+      await logger.time(
+        "tool.delete_project",
+        () => client.delete(`/project/${args.projectKeyOrId}${qs}`),
+        { tool: "delete_project", project: args.projectKeyOrId as string }
+      );
+
+      const result = { success: true, projectKey: args.projectKeyOrId };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── get_project_components ────────────────────────────────────────────────
+  server.registerTool(
+    "get_project_components",
+    {
+      title: "Get Project Components",
+      description:
+        "Get all components defined for a Jira project. Returns each component's ID, name, description, lead, assignee type, and default assignee. Components are used to categorize issues within a project.",
+      inputSchema: {
+        projectKeyOrId: z.string().describe("Project key (e.g. PROJ) or project ID"),
+        componentSource: z.enum(["jira", "compass", "auto"]).optional().describe("Filter by component source"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      if (args.componentSource) params.set("componentSource", args.componentSource as string);
+      const qs = params.toString() ? `?${params}` : "";
+
+      const result = await logger.time(
+        "tool.get_project_components",
+        () => client.get(`/project/${args.projectKeyOrId}/components${qs}`),
+        { tool: "get_project_components", project: args.projectKeyOrId as string }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: { components: result } as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── archive_project ────────────────────────────────────────────────────────
+  server.registerTool(
+    "archive_project",
+    {
+      title: "Archive Jira Project",
+      description:
+        "Archive a Jira project. Archived projects are hidden from most views and search results but are not deleted. Issues in archived projects can still be searched via JQL. Requires project admin or site admin permissions.",
+      inputSchema: {
+        projectKeyOrId: z.string().describe("Project key (e.g. PROJ) or project ID to archive"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      await logger.time(
+        "tool.archive_project",
+        () => client.post(`/project/${args.projectKeyOrId}/archive`, {}),
+        { tool: "archive_project", project: args.projectKeyOrId as string }
+      );
+
+      const result = { success: true, projectKey: args.projectKeyOrId, archived: true };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── list_recent_projects ───────────────────────────────────────────────────
+  server.registerTool(
+    "list_recent_projects",
+    {
+      title: "List Recent Jira Projects",
+      description:
+        "Get a list of projects recently viewed or accessed by the current user. Returns up to 20 projects ordered by last access time. Useful for quick project discovery without needing to know project keys.",
+      inputSchema: {
+        expand: z.string().optional().describe("Comma-separated expand fields (e.g. description,lead,url,projectKeys)"),
+        properties: z.array(z.string()).optional().describe("Project properties to include in the response"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      if (args.expand) params.set("expand", args.expand as string);
+      if (args.properties) (args.properties as string[]).forEach((p) => params.append("properties", p));
+      const qs = params.toString() ? `?${params}` : "";
+
+      const result = await logger.time(
+        "tool.list_recent_projects",
+        () => client.get(`/project/recent${qs}`),
+        { tool: "list_recent_projects" }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: { projects: result } as Record<string, unknown>,
+      };
+    }
+  );
 }

@@ -597,4 +597,149 @@ export function registerTools(server: McpServer, client: JiraClient): void {
       };
     }
   );
+
+  // ── get_issue_changelog ────────────────────────────────────────────────────
+  server.registerTool(
+    "get_issue_changelog",
+    {
+      title: "Get Issue Changelog",
+      description:
+        "Get the full change history of a Jira issue. Returns a paginated list of changelog entries, each containing the date, author, and the specific field changes (from/to values). Useful for auditing status transitions, field edits, and assignment changes.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+        startAt: z.number().int().min(0).optional().describe("Pagination offset (default 0)"),
+        maxResults: z.number().int().min(1).max(100).optional().describe("Results per page (default 100)"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      params.set("startAt", String(args.startAt ?? 0));
+      params.set("maxResults", String(args.maxResults ?? 100));
+
+      const result = await logger.time(
+        "tool.get_issue_changelog",
+        () => client.get(`/issue/${args.issueKeyOrId}/changelog?${params}`),
+        { tool: "get_issue_changelog", issue: args.issueKeyOrId as string }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── list_issue_watchers ────────────────────────────────────────────────────
+  server.registerTool(
+    "list_issue_watchers",
+    {
+      title: "List Issue Watchers",
+      description:
+        "Get the list of users watching a Jira issue. Returns the total watcher count and an array of watcher user details (account ID, display name, email) if the current user has permission to see them.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const result = await logger.time(
+        "tool.list_issue_watchers",
+        () => client.get(`/issue/${args.issueKeyOrId}/watchers`),
+        { tool: "list_issue_watchers", issue: args.issueKeyOrId as string }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── add_watcher ────────────────────────────────────────────────────────────
+  server.registerTool(
+    "add_watcher",
+    {
+      title: "Add Watcher to Issue",
+      description:
+        "Add a user as a watcher of a Jira issue. The user will receive notifications for updates to the issue. Requires the current user to have the Manage Watcher List permission.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+        accountId: z.string().describe("Account ID of the user to add as watcher"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      await logger.time(
+        "tool.add_watcher",
+        () => client.post(`/issue/${args.issueKeyOrId}/watchers`, args.accountId),
+        { tool: "add_watcher", issue: args.issueKeyOrId as string, accountId: args.accountId as string }
+      );
+
+      const result = { success: true, issueKey: args.issueKeyOrId, accountId: args.accountId };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── remove_watcher ─────────────────────────────────────────────────────────
+  server.registerTool(
+    "remove_watcher",
+    {
+      title: "Remove Watcher from Issue",
+      description:
+        "Remove a user from the watcher list of a Jira issue. The user will stop receiving notifications for that issue. Requires Manage Watcher List permission.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+        accountId: z.string().describe("Account ID of the user to remove from watchers"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      await logger.time(
+        "tool.remove_watcher",
+        () => client.delete(`/issue/${args.issueKeyOrId}/watchers?accountId=${encodeURIComponent(args.accountId as string)}`),
+        { tool: "remove_watcher", issue: args.issueKeyOrId as string, accountId: args.accountId as string }
+      );
+
+      const result = { success: true, issueKey: args.issueKeyOrId, accountId: args.accountId };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── get_issue_remote_links ─────────────────────────────────────────────────
+  server.registerTool(
+    "get_issue_remote_links",
+    {
+      title: "Get Issue Remote Links",
+      description:
+        "Get all remote links (external URLs) associated with a Jira issue. Remote links connect Jira issues to external systems like Confluence pages, GitHub PRs, or arbitrary web URLs. Returns link ID, title, URL, icon, and relationship type.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+        globalId: z.string().optional().describe("Filter by global ID (unique ID for the remote link from the remote system)"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      if (args.globalId) params.set("globalId", args.globalId as string);
+      const qs = params.toString() ? `?${params}` : "";
+
+      const result = await logger.time(
+        "tool.get_issue_remote_links",
+        () => client.get(`/issue/${args.issueKeyOrId}/remotelink${qs}`),
+        { tool: "get_issue_remote_links", issue: args.issueKeyOrId as string }
+      );
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: { remoteLinks: result } as Record<string, unknown>,
+      };
+    }
+  );
 }

@@ -95,10 +95,15 @@ export class JiraClient {
       const start = performance.now();
 
       try {
-        // Agile API uses /rest/agile/1.0 prefix, regular API uses /rest/api/3
+        // Route to correct API base:
+        // - /agile/  → /rest/agile/1.0
+        // - /servicedeskapi/ → /rest/servicedeskapi
+        // - everything else  → /rest/api/3
         const url = path.startsWith("/agile/")
           ? `${this.baseUrl}/rest${path}`
-          : `${this.baseUrl}/rest/api/3${path}`;
+          : path.startsWith("/servicedeskapi/")
+            ? `${this.baseUrl}/rest${path}`
+            : `${this.baseUrl}/rest/api/3${path}`;
         logger.debug("api_request.start", {
           requestId,
           method: options.method || "GET",
@@ -185,6 +190,10 @@ export class JiraClient {
 
   async put<T = unknown>(path: string, data: unknown): Promise<T> {
     return this.request<T>(path, { method: "PUT", body: JSON.stringify(data) });
+  }
+
+  async patch<T = unknown>(path: string, data: unknown): Promise<T> {
+    return this.request<T>(path, { method: "PATCH", body: JSON.stringify(data) });
   }
 
   async delete<T = unknown>(path: string): Promise<T> {
