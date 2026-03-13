@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Jira MCP Server — Production Quality
-// 16 tools covering projects, issues, sprints, boards, comments, users
+// 52 tools covering projects, issues, sprints, boards, comments, users,
+// worklogs, attachments, versions, components, custom fields, labels, priorities
 // Transport: stdio (default) or HTTP (MCP_TRANSPORT=http)
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,6 +16,14 @@ import { registerTools as registerIssuesTools } from "./tools/issues.js";
 import { registerTools as registerCommentsTools } from "./tools/comments.js";
 import { registerTools as registerSprintsTools } from "./tools/sprints.js";
 import { registerTools as registerUsersTools } from "./tools/users.js";
+import { registerTools as registerBoardsTools } from "./tools/boards.js";
+import { registerTools as registerWorklogsTools } from "./tools/worklogs.js";
+import { registerTools as registerAttachmentsTools } from "./tools/attachments.js";
+import { registerTools as registerVersionsTools } from "./tools/versions.js";
+import { registerTools as registerComponentsTools } from "./tools/components.js";
+import { registerTools as registerCustomFieldsTools } from "./tools/custom_fields.js";
+import { registerTools as registerLabelsTools } from "./tools/labels.js";
+import { registerTools as registerPrioritiesTools } from "./tools/priorities.js";
 
 const MCP_NAME = "jira";
 const MCP_VERSION = "1.0.0";
@@ -50,23 +59,54 @@ async function main() {
   });
 
   // ── Register all tool groups ─────────────────────────────────────────────
-  registerHealthTools(server, client);   // 1: health_check
-  registerProjectsTools(server, client); // 2: list_projects, get_project
-  registerIssuesTools(server, client);   // 7: list_issues, search_issues, get_issue, create_issue, update_issue, transition_issue, assign_issue
-  registerCommentsTools(server, client); // 2: list_comments, add_comment
-  registerSprintsTools(server, client);  // 3: list_boards, list_sprints, get_sprint
-  registerUsersTools(server, client);    // 1: get_user
-  // Total: 16 tools
+  registerHealthTools(server, client);      // 1:  health_check
+  registerProjectsTools(server, client);    // 5:  list_projects, get_project, get_project_statuses, list_project_roles, create_project
+  registerIssuesTools(server, client);      // 11: list_issues, search_issues, get_issue, create_issue, update_issue, transition_issue, assign_issue, delete_issue, link_issues, clone_issue, bulk_create_issues
+  registerCommentsTools(server, client);    // 2:  list_comments, add_comment
+  registerSprintsTools(server, client);     // 6:  list_boards, list_sprints, get_sprint, update_sprint, close_sprint, move_issues_to_sprint
+  registerUsersTools(server, client);       // 1:  get_user
+  registerBoardsTools(server, client);      // 3:  get_board, get_board_configuration, list_board_sprints
+  registerWorklogsTools(server, client);    // 4:  list_worklogs, add_worklog, update_worklog, delete_worklog
+  registerAttachmentsTools(server, client); // 3:  list_attachments, get_attachment_content, delete_attachment
+  registerVersionsTools(server, client);    // 4:  list_versions, create_version, update_version, release_version
+  registerComponentsTools(server, client);  // 4:  list_components, create_component, update_component, delete_component
+  registerCustomFieldsTools(server, client);// 4:  list_fields, get_field, list_field_contexts, get_field_options
+  registerLabelsTools(server, client);      // 2:  list_labels, get_suggested_labels
+  registerPrioritiesTools(server, client);  // 2:  list_priorities, get_priority
+  // Total: 52 tools
 
   logger.info("server.tools_registered", {
-    count: 16,
+    count: 52,
     tools: [
+      // Health
       "health_check",
-      "list_projects", "get_project",
-      "list_issues", "search_issues", "get_issue", "create_issue", "update_issue", "transition_issue", "assign_issue",
+      // Projects (5)
+      "list_projects", "get_project", "get_project_statuses", "list_project_roles", "create_project",
+      // Issues (11)
+      "list_issues", "search_issues", "get_issue", "create_issue", "update_issue",
+      "transition_issue", "assign_issue", "delete_issue", "link_issues", "clone_issue", "bulk_create_issues",
+      // Comments (2)
       "list_comments", "add_comment",
-      "list_boards", "list_sprints", "get_sprint",
+      // Sprints (6)
+      "list_boards", "list_sprints", "get_sprint", "update_sprint", "close_sprint", "move_issues_to_sprint",
+      // Users (1)
       "get_user",
+      // Boards (3)
+      "get_board", "get_board_configuration", "list_board_sprints",
+      // Worklogs (4)
+      "list_worklogs", "add_worklog", "update_worklog", "delete_worklog",
+      // Attachments (3)
+      "list_attachments", "get_attachment_content", "delete_attachment",
+      // Versions (4)
+      "list_versions", "create_version", "update_version", "release_version",
+      // Components (4)
+      "list_components", "create_component", "update_component", "delete_component",
+      // Custom Fields (4)
+      "list_fields", "get_field", "list_field_contexts", "get_field_options",
+      // Labels (2)
+      "list_labels", "get_suggested_labels",
+      // Priorities (2)
+      "list_priorities", "get_priority",
     ],
   });
 

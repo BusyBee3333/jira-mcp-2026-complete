@@ -1,4 +1,4 @@
-// Issues tools: list_issues, search_issues, get_issue, create_issue, update_issue, transition_issue, assign_issue
+// Issues tools: list_issues, search_issues, get_issue, create_issue, update_issue, transition_issue, assign_issue, delete_issue, link_issues, clone_issue, bulk_create_issues
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { JiraClient } from "../client.js";
@@ -334,6 +334,263 @@ export function registerTools(server: McpServer, client: JiraClient): void {
       );
 
       const result = { success: true, issueKey: args.issueKeyOrId };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── delete_issue ───────────────────────────────────────────────────────────
+  server.registerTool(
+    "delete_issue",
+    {
+      title: "Delete Jira Issue",
+      description:
+        "Permanently delete a Jira issue by key or ID. Optionally delete subtasks as well. This action cannot be undone. The issue must not be a subtask of another issue unless deleteSubtasks is true.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key (e.g. PROJ-123) or issue ID"),
+        deleteSubtasks: z
+          .boolean()
+          .optional()
+          .describe("Also delete all subtasks of this issue (default: false — will fail if issue has subtasks)"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+    },
+    async (args) => {
+      const params = new URLSearchParams();
+      if (args.deleteSubtasks) params.set("deleteSubtasks", "true");
+      const qs = params.toString() ? `?${params}` : "";
+
+      await logger.time(
+        "tool.delete_issue",
+        () => client.delete(`/issue/${args.issueKeyOrId}${qs}`),
+        { tool: "delete_issue", issue: args.issueKeyOrId as string }
+      );
+
+      const result = { success: true, issueKey: args.issueKeyOrId };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── link_issues ────────────────────────────────────────────────────────────
+  server.registerTool(
+    "link_issues",
+    {
+      title: "Link Jira Issues",
+      description:
+        "Create a link between two Jira issues. Common link types: 'Blocks', 'Cloners', 'Duplicate', 'Relates', 'Epic-Story Link'. The link direction matters: inwardIssue is the issue that 'blocks' outwardIssue. Use get_issue to see existing links.",
+      inputSchema: {
+        linkType: z
+          .string()
+          .describe("Link type name (e.g. 'Blocks', 'Duplicate', 'Relates', 'Cloners') or link type ID"),
+        inwardIssueKey: z
+          .string()
+          .describe("Key of the inward issue (e.g. the blocker in a 'Blocks' relationship)"),
+        outwardIssueKey: z
+          .string()
+          .describe("Key of the outward issue (e.g. the blocked issue in a 'Blocks' relationship)"),
+        comment: z.string().optional().describe("Optional comment to add with the link"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      const body: Record<string, unknown> = {
+        type: { name: args.linkType },
+        inwardIssue: { key: args.inwardIssueKey },
+        outwardIssue: { key: args.outwardIssueKey },
+      };
+
+      if (args.comment) {
+        body.comment = {
+          body: {
+            type: "doc",
+            version: 1,
+            content: [{ type: "paragraph", content: [{ type: "text", text: args.comment }] }],
+          },
+        };
+      }
+
+      await logger.time(
+        "tool.link_issues",
+        () => client.post("/issueLink", body),
+        { tool: "link_issues", inward: args.inwardIssueKey as string, outward: args.outwardIssueKey as string }
+      );
+
+      const result = {
+        success: true,
+        linkType: args.linkType,
+        inwardIssue: args.inwardIssueKey,
+        outwardIssue: args.outwardIssueKey,
+      };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── clone_issue ────────────────────────────────────────────────────────────
+  server.registerTool(
+    "clone_issue",
+    {
+      title: "Clone Jira Issue",
+      description:
+        "Clone (copy) a Jira issue into the same or a different project. Copies summary, description, issue type, priority, and labels. Optionally override fields in the clone. Returns the new issue key.",
+      inputSchema: {
+        issueKeyOrId: z.string().describe("Issue key or ID to clone (e.g. PROJ-123)"),
+        targetProject: z
+          .string()
+          .optional()
+          .describe("Target project key (defaults to same project as source issue)"),
+        summaryPrefix: z
+          .string()
+          .optional()
+          .describe("Prefix for the clone's summary (default: 'CLONE - ')"),
+        copySubtasks: z.boolean().optional().describe("Also clone subtasks (default: false)"),
+        additionalFields: z
+          .record(z.unknown())
+          .optional()
+          .describe("Additional fields to set on the cloned issue (override source values)"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      // Fetch the source issue
+      const source = await logger.time(
+        "tool.clone_issue.fetch",
+        () => client.get<{
+          fields: {
+            summary: string;
+            description: unknown;
+            issuetype: { name: string };
+            priority?: { name: string };
+            labels?: string[];
+            assignee?: { accountId: string };
+            components?: Array<{ name: string }>;
+            fixVersions?: Array<{ name: string }>;
+            project: { key: string };
+          };
+        }>(`/issue/${args.issueKeyOrId}`),
+        { tool: "clone_issue", issue: args.issueKeyOrId as string }
+      );
+
+      const prefix = (args.summaryPrefix as string | undefined) ?? "CLONE - ";
+      const fields: Record<string, unknown> = {
+        project: { key: args.targetProject ?? source.fields.project.key },
+        summary: `${prefix}${source.fields.summary}`,
+        issuetype: { name: source.fields.issuetype.name },
+      };
+
+      if (source.fields.description) fields.description = source.fields.description;
+      if (source.fields.priority) fields.priority = { name: source.fields.priority.name };
+      if (source.fields.labels?.length) fields.labels = source.fields.labels;
+      if (source.fields.components?.length) fields.components = source.fields.components;
+      if (source.fields.fixVersions?.length) fields.fixVersions = source.fields.fixVersions;
+
+      // Apply any override fields
+      if (args.additionalFields) Object.assign(fields, args.additionalFields);
+
+      // Add a link to the original issue
+      const cloneResult = await logger.time(
+        "tool.clone_issue.create",
+        () => client.post<{ key: string; id: string }>("/issue", { fields }),
+        { tool: "clone_issue" }
+      );
+
+      // Create a "Cloners" link between original and clone
+      try {
+        await client.post("/issueLink", {
+          type: { name: "Cloners" },
+          inwardIssue: { key: cloneResult.key },
+          outwardIssue: { key: args.issueKeyOrId },
+        });
+      } catch {
+        // Link creation is best-effort — don't fail the clone if link type doesn't exist
+      }
+
+      const result = {
+        success: true,
+        sourceIssue: args.issueKeyOrId,
+        clonedIssue: cloneResult.key,
+        clonedIssueId: cloneResult.id,
+      };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        structuredContent: result as Record<string, unknown>,
+      };
+    }
+  );
+
+  // ── bulk_create_issues ─────────────────────────────────────────────────────
+  server.registerTool(
+    "bulk_create_issues",
+    {
+      title: "Bulk Create Jira Issues",
+      description:
+        "Create multiple Jira issues in a single API call (up to 50 issues). Each issue requires at minimum a project key and summary. Returns a list of created issue keys and IDs, plus any errors per issue.",
+      inputSchema: {
+        issues: z
+          .array(
+            z.object({
+              project: z.string().describe("Project key (e.g. PROJ)"),
+              summary: z.string().describe("Issue summary"),
+              issueType: z.string().optional().describe("Issue type (default: Task)"),
+              description: z.string().optional().describe("Issue description (plain text)"),
+              priority: z.string().optional().describe("Priority name"),
+              assignee: z.string().optional().describe("Assignee account ID"),
+              labels: z.array(z.string()).optional().describe("Labels array"),
+              parentKey: z.string().optional().describe("Parent issue key (for subtasks)"),
+              components: z.array(z.string()).optional().describe("Component names"),
+              fixVersions: z.array(z.string()).optional().describe("Fix version names"),
+              customFields: z.record(z.unknown()).optional().describe("Custom fields map"),
+            })
+          )
+          .min(1)
+          .max(50)
+          .describe("Array of issues to create (1-50 issues)"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      const issueUpdates = (args.issues as Array<Record<string, unknown>>).map((issue) => {
+        const fields: Record<string, unknown> = {
+          project: { key: issue.project },
+          summary: issue.summary,
+          issuetype: { name: issue.issueType ?? "Task" },
+        };
+
+        if (issue.description) {
+          fields.description = {
+            type: "doc",
+            version: 1,
+            content: [{ type: "paragraph", content: [{ type: "text", text: issue.description }] }],
+          };
+        }
+        if (issue.priority) fields.priority = { name: issue.priority };
+        if (issue.assignee) fields.assignee = { accountId: issue.assignee };
+        if (issue.labels) fields.labels = issue.labels;
+        if (issue.parentKey) fields.parent = { key: issue.parentKey };
+        if (issue.components) {
+          fields.components = (issue.components as string[]).map((name) => ({ name }));
+        }
+        if (issue.fixVersions) {
+          fields.fixVersions = (issue.fixVersions as string[]).map((name) => ({ name }));
+        }
+        if (issue.customFields) Object.assign(fields, issue.customFields);
+
+        return { fields };
+      });
+
+      const result = await logger.time(
+        "tool.bulk_create_issues",
+        () => client.post("/issue/bulk", { issueUpdates }),
+        { tool: "bulk_create_issues", count: String(issueUpdates.length) }
+      );
+
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         structuredContent: result as Record<string, unknown>,
