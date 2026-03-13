@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Jira MCP Server — Production Quality
-// 52 tools covering projects, issues, sprints, boards, comments, users,
-// worklogs, attachments, versions, components, custom fields, labels, priorities
+// 102 tools covering projects, issues, sprints, boards, comments, users,
+// worklogs, attachments, versions, components, custom fields, labels, priorities,
+// service management (JSM), screens, issue types, permissions, filters, audit log,
+// statuses, notification schemes, roadmap/epics
 // Transport: stdio (default) or HTTP (MCP_TRANSPORT=http)
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -24,6 +26,15 @@ import { registerTools as registerComponentsTools } from "./tools/components.js"
 import { registerTools as registerCustomFieldsTools } from "./tools/custom_fields.js";
 import { registerTools as registerLabelsTools } from "./tools/labels.js";
 import { registerTools as registerPrioritiesTools } from "./tools/priorities.js";
+import { registerTools as registerServiceManagementTools } from "./tools/service_management.js";
+import { registerTools as registerScreensTools } from "./tools/screens.js";
+import { registerTools as registerIssueTypesTools } from "./tools/issue_types.js";
+import { registerTools as registerPermissionsTools } from "./tools/permissions.js";
+import { registerTools as registerFiltersTools } from "./tools/filters.js";
+import { registerTools as registerAuditLogTools } from "./tools/audit_log.js";
+import { registerTools as registerStatusesTools } from "./tools/statuses.js";
+import { registerTools as registerNotificationSchemesTools } from "./tools/notification_schemes.js";
+import { registerTools as registerRoadmapTools } from "./tools/roadmap.js";
 
 const MCP_NAME = "jira";
 const MCP_VERSION = "1.0.0";
@@ -71,26 +82,40 @@ async function main() {
   registerVersionsTools(server, client);    // 4:  list_versions, create_version, update_version, release_version
   registerComponentsTools(server, client);  // 4:  list_components, create_component, update_component, delete_component
   registerCustomFieldsTools(server, client);// 4:  list_fields, get_field, list_field_contexts, get_field_options
-  registerLabelsTools(server, client);      // 2:  list_labels, get_suggested_labels
-  registerPrioritiesTools(server, client);  // 2:  list_priorities, get_priority
-  // Total: 52 tools
+  registerLabelsTools(server, client);               // 2:  list_labels, get_suggested_labels
+  registerPrioritiesTools(server, client);           // 2:  list_priorities, get_priority
+  registerServiceManagementTools(server, client);    // 6:  list_service_desks, get_service_desk, list_request_types, list_queues, get_queue_issues, list_sla_info
+  registerScreensTools(server, client);              // 5:  list_screens, get_screen, list_screen_tabs, list_screen_tab_fields, add_field_to_screen
+  registerIssueTypesTools(server, client);           // 5:  list_issue_types, get_issue_type, create_issue_type, update_issue_type, list_issue_type_schemes
+  registerPermissionsTools(server, client);          // 3:  list_permission_schemes, get_permission_scheme, list_my_permissions
+  registerFiltersTools(server, client);              // 6:  list_filters, get_filter, create_filter, update_filter, delete_filter, get_filter_columns
+  registerAuditLogTools(server, client);             // 1:  get_audit_records
+  registerStatusesTools(server, client);             // 3:  list_statuses, get_status, list_status_categories
+  registerNotificationSchemesTools(server, client);  // 2:  list_notification_schemes, get_notification_scheme
+  registerRoadmapTools(server, client);              // 5:  list_epics, get_epic, update_epic, list_epic_issues, move_issue_to_epic
+  // Issues expansions: +5 (get_issue_changelog, list_issue_watchers, add_watcher, remove_watcher, get_issue_remote_links)
+  // Projects expansions: +5 (update_project, delete_project, get_project_components, archive_project, list_recent_projects)
+  // Users expansions: +4 (find_users_by_query, get_user_groups, list_all_users, get_account_ids)
+  // Total: 102 tools
 
   logger.info("server.tools_registered", {
-    count: 52,
+    count: 102,
     tools: [
-      // Health
+      // Health (1)
       "health_check",
-      // Projects (5)
+      // Projects (10)
       "list_projects", "get_project", "get_project_statuses", "list_project_roles", "create_project",
-      // Issues (11)
+      "update_project", "delete_project", "get_project_components", "archive_project", "list_recent_projects",
+      // Issues (16)
       "list_issues", "search_issues", "get_issue", "create_issue", "update_issue",
       "transition_issue", "assign_issue", "delete_issue", "link_issues", "clone_issue", "bulk_create_issues",
+      "get_issue_changelog", "list_issue_watchers", "add_watcher", "remove_watcher", "get_issue_remote_links",
       // Comments (2)
       "list_comments", "add_comment",
       // Sprints (6)
       "list_boards", "list_sprints", "get_sprint", "update_sprint", "close_sprint", "move_issues_to_sprint",
-      // Users (1)
-      "get_user",
+      // Users (5)
+      "get_user", "find_users_by_query", "get_user_groups", "list_all_users", "get_account_ids",
       // Boards (3)
       "get_board", "get_board_configuration", "list_board_sprints",
       // Worklogs (4)
@@ -107,6 +132,25 @@ async function main() {
       "list_labels", "get_suggested_labels",
       // Priorities (2)
       "list_priorities", "get_priority",
+      // Service Management / JSM (6)
+      "list_service_desks", "get_service_desk", "list_request_types",
+      "list_queues", "get_queue_issues", "list_sla_info",
+      // Screens (5)
+      "list_screens", "get_screen", "list_screen_tabs", "list_screen_tab_fields", "add_field_to_screen",
+      // Issue Types (5)
+      "list_issue_types", "get_issue_type", "create_issue_type", "update_issue_type", "list_issue_type_schemes",
+      // Permissions (3)
+      "list_permission_schemes", "get_permission_scheme", "list_my_permissions",
+      // Filters (6)
+      "list_filters", "get_filter", "create_filter", "update_filter", "delete_filter", "get_filter_columns",
+      // Audit Log (1)
+      "get_audit_records",
+      // Statuses (3)
+      "list_statuses", "get_status", "list_status_categories",
+      // Notification Schemes (2)
+      "list_notification_schemes", "get_notification_scheme",
+      // Roadmap / Epics (5)
+      "list_epics", "get_epic", "update_epic", "list_epic_issues", "move_issue_to_epic",
     ],
   });
 
